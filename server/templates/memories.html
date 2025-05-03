@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Memories for {{ user_id }}</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('search_memories') }}?user_id={{ user_id }}" class="btn btn-outline-primary">
+                <i class="fas fa-search"></i> Search Memories
+            </a>
+            <a href="{{ url_for('batch_operations') }}" class="btn btn-outline-primary">
+                <i class="fas fa-tasks"></i> Batch Operations
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Add Memory Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Add New Memory</h5>
+            <form method="POST" action="{{ url_for('add_memory', user_id=user_id) }}">
+                <div class="form-group">
+                    <textarea class="form-control" name="memory_text" rows="3" placeholder="Enter memory text..." required></textarea>
+        </div>
+                <button type="submit" class="btn btn-primary mt-2">Add Memory</button>
+        </form>
+    </div>
+    </div>
+
+    <!-- Memories List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Memories</h5>
+        </div>
+        <div class="card-body">
+            {% if memories %}
+                <div class="list-group">
+                    {% for memory in memories %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">Memory {{ memory.id }}</h5>
+                                <small>{{ memory.created }}</small>
+                            </div>
+                            <p class="mb-1">{{ memory.text }}</p>
+                            {% if memory.metadata %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Mood:</strong> {{ memory.metadata.mood or 'N/A' }} |
+                                        <strong>Location:</strong> {{ memory.metadata.location or 'N/A' }} |
+                                        <strong>Date:</strong> {{ memory.metadata.timestamp or 'N/A' }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                            <div class="mt-2">
+                                <a href="{{ url_for('memory_details', memory_id=memory.id) }}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-info-circle"></i> Details
+                                </a>
+                                <form method="POST" action="{{ url_for('delete_memory', memory_id=memory.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this memory?')">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    No memories found for this user.
+        </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.total_pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('user_memories', user_id=user_id, page=pagination.current_page-1) }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for page in range(1, pagination.total_pages + 1) %}
+                    <li class="page-item {% if page == pagination.current_page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('user_memories', user_id=user_id, page=page) }}">{{ page }}</a>
+                    </li>
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('user_memories', user_id=user_id, page=pagination.current_page+1) }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}
