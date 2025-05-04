@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Pressable,
 import { Image } from 'expo-image';
 import { format } from 'date-fns';
 import { Headphones, Image as ImageIcon, FileText, Maximize2, ChevronLeft, ChevronRight, Music, Play, Pause, X, Trash2 } from 'lucide-react-native';
-import axios from 'axios';
 
 import { JournalEntryUnion } from '@/types';
 import AudioPlayer from './AudioPlayer';
@@ -24,7 +23,7 @@ export default function JournalEntryCard({ entry, onPress }: Props) {
 
   const fetchPreviewUrl = async (songId: string) => {
     try {
-      const response = await axios.get(`https://api.deezer.com/track/${songId}`);
+      const response = await fetch(`https://api.deezer.com/track/${songId}`);
       setPreviewUrl(response.data.preview);
       return response.data.preview;
     } catch (error) {
@@ -214,6 +213,8 @@ export default function JournalEntryCard({ entry, onPress }: Props) {
             {entry.metadata.song_id && (
               <View style={styles.songHeader}>
                 <View style={styles.songInfo}>
+                  <Text style={styles.songTitle}>{entry.metadata.song_title}</Text>
+                  <Text style={styles.songArtist}>{entry.metadata.song_artist}</Text>
                 </View>
                 {previewUrl && (
                   <AudioPlayer 
@@ -261,39 +262,23 @@ export default function JournalEntryCard({ entry, onPress }: Props) {
         );
       case 'audio':
         return (
-          <View style={styles.fullScreenAudioContainer}>
-            <View style={styles.fullScreenAudioWaveform}>
-              {Array.from({ length: 50 }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.fullScreenWaveformBar,
-                    { height: Math.random() * 100 + 20 }
-                  ]}
-                />
-              ))}
-            </View>
-            <View style={styles.fullScreenAudioContent}>
-              {entry.metadata.song_id && (
-                <View style={styles.songHeader}>
-                  <View style={styles.songInfo}>
-                    <Text style={styles.songTitle}>{entry.metadata.song_title}</Text>
-                    <Text style={styles.songArtist}>{entry.metadata.song_artist}</Text>
-                  </View>
-                  {previewUrl && (
-                    <AudioPlayer 
-                      uri={previewUrl}
-                      title={entry.metadata.song_title}
-                      artist={entry.metadata.song_artist}
-                    />
-                  )}
+          <View style={styles.audioContainer}>
+            {entry.metadata.song_id && (
+              <View style={styles.songInfoHeader}>
+                <Music size={20} color="white" style={styles.songInfoIcon} />
+                <View style={styles.songInfoText}>
+                  <Text style={styles.songInfoTitle}>{entry.metadata.song_title}</Text>
+                  <Text style={styles.songInfoArtist}>{entry.metadata.song_artist}</Text>
                 </View>
-              )}
+              </View>
+            )}
+            <View style={styles.audioContent}>
               <AudioPlayer uri={entry.metadata.audio_url} />
               {entry.metadata.caption && (
-                <Text style={styles.fullScreenAudioCaption}>{entry.metadata.caption}</Text>
+                <Text style={styles.audioCaption}>{entry.metadata.caption}</Text>
               )}
             </View>
+            {renderFullScreenButton()}
           </View>
         );
       case 'text':
@@ -432,6 +417,15 @@ export default function JournalEntryCard({ entry, onPress }: Props) {
       case 'audio':
         return (
           <View style={styles.audioContainer}>
+            {entry.metadata.song_id && (
+              <View style={styles.songInfoHeader}>
+                <Music size={20} color="white" style={styles.songInfoIcon} />
+                <View style={styles.songInfoText}>
+                  <Text style={styles.songInfoTitle}>{entry.metadata.song_title}</Text>
+                  <Text style={styles.songInfoArtist}>{entry.metadata.song_artist}</Text>
+                </View>
+              </View>
+            )}
             <View style={styles.audioContent}>
               <AudioPlayer uri={entry.metadata.audio_url} />
               {entry.metadata.caption && (
@@ -554,6 +548,11 @@ const styles = StyleSheet.create({
   audioContainer: {
     backgroundColor: Colors.themeBrown_colors[450],
     padding: spacing.md,
+    marginTop: -spacing.md,
+    marginLeft: -spacing.md,
+    marginRight: -spacing.md,
+    borderTopLeftRadius: borderRadius.md,
+    borderTopRightRadius: borderRadius.md,
   },
   audioWaveformContainer: {
     flexDirection: 'row',
@@ -896,10 +895,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(117, 115, 115, 0.7)',
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    marginBottom: -spacing.md,
-    width: '90%',
-    // marginBottom: spacing.sm,
-
+    marginBottom: spacing.md,
+    width: '100%',
   },
   songInfo: {
     // marginBottom: spacing.sm,

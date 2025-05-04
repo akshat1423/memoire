@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 const mem0ApiKey = process.env.MEM0_API_KEY!;
 console.log('MEM0 API Key:', mem0ApiKey);
 const client = new MemoryClient({ 
-  apiKey: mem0ApiKey,
+  apiKey: "m0-F4TqSBPgG2wdFAl1rM0weKCW9bkhwLeitUYCmFTw",
 });
 
 export const createJournalEntry = async (
@@ -129,38 +129,83 @@ export const searchJournalEntries = async (filters: SearchFilters): Promise<Jour
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id || 'dummy-user';
     
-    let query = '';
+    console.log('Search filters:', filters);
+    
+    // Additional free text query
+    const query = filters.query || "";
+    
+    // Build filters for v2 search
+    const searchOptions: any = {
+      version: "v2",
+      user_id: userId, // Direct parameter instead of in filters
+      page: filters.page || 1,
+      page_size: filters.pageSize || 10
+    };
+    
+    // Optional advanced filters
+    const advancedFilters: any = { AND: [] };
+    let hasAdvancedFilters = false;
     
     // Apply type filters
     if (filters.types && filters.types.length > 0) {
-      query += ` type:(${filters.types.join(' OR ')})`;
-    }
-
-    // Apply tag filters
-    if (filters.tags && filters.tags.length > 0) {
-      query += ` tags:(${filters.tags.join(' OR ')})`;
-    }
-
-    // Apply location filter
-    if (filters.location) {
-      query += ` location:${filters.location}`;
-    }
-
-    // Apply date range filter
-    if (filters.dateRange) {
-      const fromDate = format(filters.dateRange.from, 'yyyy-MM-dd');
-      const toDate = format(filters.dateRange.to, 'yyyy-MM-dd');
-      query += ` date:[${fromDate} TO ${toDate}]`;
+      advancedFilters.AND.push({
+        "metadata": {
+          "type": {
+            "in": filters.types
+          }
+        }
+      });
+      hasAdvancedFilters = true;
     }
     
-    const results = await client.search(query, {
-      user_id: userId
-    });
+    // Apply tag filters
+    if (filters.tags && filters.tags.length > 0) {
+      advancedFilters.AND.push({
+        "metadata": {
+          "tags": {
+            "contains": filters.tags
+          }
+        }
+      });
+      hasAdvancedFilters = true;
+    }
+    
+    // Apply location filter
+    if (filters.location) {
+      advancedFilters.AND.push({
+        "metadata": {
+          "location": filters.location
+        }
+      });
+      hasAdvancedFilters = true;
+    }
+    
+    // Apply date range filter
+    if (filters.dateRange) {
+      advancedFilters.AND.push({
+        "created_at": {
+          "gte": filters.dateRange.from.toISOString().split('T')[0],
+          "lte": filters.dateRange.to.toISOString().split('T')[0]
+        }
+      });
+      hasAdvancedFilters = true;
+    }
+    
+    // Only add filters if we have advanced filters
+    if (hasAdvancedFilters) {
+      searchOptions.filters = advancedFilters;
+    }
+    
+    console.log('Search query:', query);
+    console.log('Search options:', searchOptions);
+    
+    // Use v2 search with options
+    const results = await client.search(query, searchOptions);
 
     return results
       .map(result => {
         const { metadata, memory } = result;
-
+        
         return {
           id: result.id,
           type: metadata?.type || 'unknown',
@@ -198,17 +243,33 @@ export const searchJournalCalendarEntries = async (
     // Format the date to match the format in the database
     const formattedDate = new Date(date).toISOString().split('T')[0];
     
-    // Search for entries on the specific date
-    const results = await client.search(`date:${formattedDate}`, {
-      user_id: userId
-    });
+    // For exact date match, we need the same date for both gte and lte
+    const searchOptions = {
+      version: "v2",
+      user_id: userId,
+      filters: {
+        "AND": [
+          {
+            "created_at": {
+              "gte": formattedDate,
+              "lte": formattedDate
+            }
+          }
+        ]
+      }
+    };
+    
+    console.log('Calendar search options:', searchOptions);
+    
+    // Use getAll method instead of search to get all matching entries
+    const results = await client.getAll(searchOptions);
     
     console.log('Calendar search results:', results);
-
+    
     return results
       .map(result => {
         const { metadata, memory } = result;
-
+        
         return {
           id: result.id,
           type: metadata?.type || 'unknown',

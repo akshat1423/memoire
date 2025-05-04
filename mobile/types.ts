@@ -26,6 +26,12 @@ export interface JournalEntryUnion {
       city?: string;
       country?: string;
     };
+    song_id?: string;
+    song_title?: string;
+    song_artist?: string;
+    image_url?: string;
+    image_count?: number;
+    images?: string;
   };
   createdAt: string | null;
   updatedAt: string | null;

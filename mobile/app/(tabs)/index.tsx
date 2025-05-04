@@ -8,6 +8,7 @@ import { spacing, borderRadius, shadows, typography } from '@/constants/Layout';
 import { supabase } from '@/lib/supabase';
 import { JournalEntryUnion } from '@/types';
 import { useRouter } from 'expo-router';
+import Colors from '@/constants/Colors';
 
 export default function JournalScreen() {
   const [entries, setEntries] = useState<JournalEntryUnion[]>([]);

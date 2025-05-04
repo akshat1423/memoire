@@ -3,6 +3,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useFonts } from '@/hooks/useFonts';
+import { LogBox } from 'react-native';
+
+LogBox.ignoreAllLogs(true);
+
 
 export default function RootLayout() {
   useFrameworkReady();

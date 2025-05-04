@@ -96,7 +96,8 @@ export default function SearchScreen() {
         setHasSearched(true);
         setSearchResults([]);
       }
-      
+      console.log('Searching for:', query);
+      console.log('Filters:', filters);
       const results = await searchJournalEntries({
         query,
         ...filters,

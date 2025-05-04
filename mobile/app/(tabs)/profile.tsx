@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Settings, LogOut, CreditCard as Edit } from 'lucide-react-native';
+import { Settings, LogOut, CreditCard as Edit, Music } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import Colors from '@/constants/Colors';
-import { spacing, typography, borderRadius } from '@/constants/Layout';
+import { spacing, typography, borderRadius, shadows } from '@/constants/Layout';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { shadows as oldShadows } from '@/constants/Layout';
+import AudioPlayer from '@/components/AudioPlayer';
 
 interface Profile {
   id: string;
@@ -19,6 +21,7 @@ interface Profile {
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -27,8 +30,13 @@ export default function ProfileScreen() {
   const loadProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
-
+      if (!user) {
+        setIsLoggedIn(false);
+        setLoading(false);
+        return;
+      }
+      
+      setIsLoggedIn(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -73,11 +81,70 @@ export default function ProfileScreen() {
     },
   ];
 
+  const renderAudioPost = (entry: any) => (
+    <View style={styles.audioContainer}>
+      {entry.metadata.song_id && (
+        <View style={styles.songInfoHeader}>
+          <Music size={20} color="white" style={styles.songInfoIcon} />
+          <View style={styles.songInfoText}>
+            <Text style={styles.songInfoTitle}>{entry.metadata.song_title}</Text>
+            <Text style={styles.songInfoArtist}>{entry.metadata.song_artist}</Text>
+          </View>
+        </View>
+      )}
+      <View style={styles.audioContent}>
+        <AudioPlayer uri={entry.metadata.audio_url} />
+        {entry.metadata.caption && (
+          <Text style={styles.audioCaption}>{entry.metadata.caption}</Text>
+        )}
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
         <Text>Loading...</Text>
       </View>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <ImageBackground
+        source={{
+          uri: 'https://ynxmsntmoccpldagoxrh.supabase.co/storage/v1/object/public/memoireapp/default-user/grunge-paper-background.jpg',
+        }}
+        style={styles.background}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay}>
+          <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+              <Text style={styles.logo}>
+                Memoire <FontAwesome5 name="pen-fancy" size={24} color="rgb(151 88 15)" style={styles.penIcon} />
+              </Text>
+              <Text style={styles.headerTitle}>Profile</Text>
+            </View>
+            <View style={styles.contentBox}>
+              <View style={styles.emptyIconContainer}>
+                <FontAwesome5 name="user-lock" size={48} color={Colors.themeBrown_colors[250]} />
+              </View>
+              <Text style={styles.emptyTitle}>Welcome to Memoire</Text>
+              <Text style={styles.emptySubtitle}>
+                Please log in to view and manage your profile. Personalize your journaling experience.
+              </Text>
+              <TouchableOpacity 
+                style={styles.loginButton}
+                onPress={() => router.push('/auth/sign-in')}
+              >
+                <FontAwesome5 name="sign-in-alt" size={16} color="white" style={styles.plusIcon} />
+                <Text style={styles.loginButtonText}>Log In</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+      </ImageBackground>
     );
   }
 
@@ -224,5 +291,96 @@ const styles = StyleSheet.create({
   },
   menuItemTextDanger: {
     color: Colors.error[500],
+  },
+  contentBox: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.nearWhite_2,
+    margin: spacing.xl,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.nearWhite_2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  emptyTitle: {
+    fontFamily: 'Tangerine_400Regular',
+    fontSize: 48,
+    color: Colors.themeBrown,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontFamily: 'Tagesschrift_400Regular',
+    fontSize: typography.md,
+    color: Colors.themeBrown_colors[250],
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: spacing.xl,
+  },
+  loginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.themeBrown_colors[250],
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    ...shadows.small,
+  },
+  plusIcon: {
+    marginRight: spacing.sm,
+  },
+  loginButtonText: {
+    fontFamily: 'Tagesschrift_400Regular',
+    fontSize: typography.md,
+    color: 'white',
+  },
+  audioContainer: {
+    backgroundColor: Colors.themeBrown_colors[450],
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  audioContent: {
+    alignItems: 'center',
+  },
+  audioCaption: {
+    fontFamily: 'Tagesschrift_400Regular',
+    fontSize: typography.sm,
+    color: Colors.themeBrown,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  songInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  songInfoIcon: {
+    marginRight: spacing.sm,
+  },
+  songInfoText: {
+    flex: 1,
+  },
+  songInfoTitle: {
+    color: 'white',
+    fontFamily: 'Tagesschrift_400Regular',
+    fontSize: typography.sm,
+    marginBottom: 1,
+  },
+  songInfoArtist: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Tagesschrift_400Regular',
+    fontSize: typography.xs,
   },
 });

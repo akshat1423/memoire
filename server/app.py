@@ -142,6 +142,9 @@ def search_memories():
     if request.method == 'POST':
         try:
             query = request.form.get('query')
+            if not query:
+                return "Error: Search query is required", 400
+                
             filters = {}
             
             # Build filters based on form data
@@ -157,21 +160,45 @@ def search_memories():
                     'lte': request.form.get('end_date')
                 }
             if request.form.get('metadata'):
-                filters['metadata'] = eval(request.form.get('metadata'))
+                try:
+                    filters['metadata'] = eval(request.form.get('metadata'))
+                except:
+                    return "Error: Invalid metadata format. Please provide valid JSON.", 400
             
             # Perform search with filters
-            results = client.search(
+            search_response = client.search(
                 query=query,
                 version="v2",
                 filters=filters
             )
             
+            # Debug the response structure
+            print("Search Response:", search_response)
+            
+            # Process results to ensure they have the required fields
+            processed_results = []
+            if isinstance(search_response, dict):
+                results = search_response.get('results', [])
+            else:
+                results = search_response if isinstance(search_response, list) else []
+            
+            for result in results:
+                if isinstance(result, dict):
+                    processed_result = {
+                        'id': result.get('id', ''),
+                        'text': result.get('text', '') or result.get('memory', ''),
+                        'created_at': result.get('created_at', ''),
+                        'metadata': result.get('metadata', {})
+                    }
+                    processed_results.append(processed_result)
+            
             return render_template('search_results.html', 
-                                results=results.get('results', []),
+                                results=processed_results,
                                 query=query)
         
         except Exception as e:
-            return f"Error: {str(e)}"
+            print("Search Error:", str(e))
+            return f"Error: {str(e)}", 500
     
     return render_template('search.html')
 
@@ -235,13 +262,45 @@ def batch_operations():
     
     return render_template('batch_operations.html')
 
+def validate_api_key(api_key):
+    """Validate the API key by making a test request."""
+    try:
+        client = MemoryClient(api_key=api_key)
+        # Make a simple request to validate the key
+        client.users()
+        return True
+    except Exception:
+        return False
+
+@app.route('/api/validate', methods=['POST'])
+def validate_key():
+    """Endpoint to validate an API key."""
+    api_key = request.json.get('api_key')
+    if not api_key:
+        return jsonify({'error': 'API key is required'}), 400
+    
+    is_valid = validate_api_key(api_key)
+    return jsonify({'valid': is_valid})
+
 @app.route('/api/search', methods=['POST'])
 def api_search():
-    client = get_client()
-    if not client:
-        return jsonify({'error': 'No API key found'}), 401
+    # Check for API key in Authorization header, request body, or session
+    api_key = (
+        request.headers.get('Authorization', '').replace('Bearer ', '') or
+        request.json.get('api_key') or
+        session.get('api_key')
+    )
+    
+    if not api_key:
+        return jsonify({
+            'error': 'No API key found. Please provide it in the Authorization header, request body, or login first.'
+        }), 401
+    
+    if not validate_api_key(api_key):
+        return jsonify({'error': 'Invalid API key'}), 401
     
     try:
+        client = MemoryClient(api_key=api_key)
         data = request.json
         query = data.get('query')
         filters = data.get('filters', {})
@@ -259,11 +318,23 @@ def api_search():
 
 @app.route('/api/memories', methods=['GET'])
 def api_memories():
-    client = get_client()
-    if not client:
-        return jsonify({'error': 'No API key found'}), 401
+    # Check for API key in Authorization header, request body, or session
+    api_key = (
+        request.headers.get('Authorization', '').replace('Bearer ', '') or
+        request.args.get('api_key') or
+        session.get('api_key')
+    )
+    
+    if not api_key:
+        return jsonify({
+            'error': 'No API key found. Please provide it in the Authorization header, query parameters, or login first.'
+        }), 401
+    
+    if not validate_api_key(api_key):
+        return jsonify({'error': 'Invalid API key'}), 401
     
     try:
+        client = MemoryClient(api_key=api_key)
         filters = {}
         if request.args.get('user_id'):
             filters['user_id'] = request.args.get('user_id')
